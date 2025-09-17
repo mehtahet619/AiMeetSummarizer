@@ -48,6 +48,15 @@ class PopupController {
       }
     });
 
+    // Real-time transcription controls
+    document.getElementById('toggleTranscription').addEventListener('click', () => {
+      this.toggleTranscription();
+    });
+
+    document.getElementById('clearTranscript').addEventListener('click', () => {
+      this.clearTranscript();
+    });
+
     // Summary style selection
     document.querySelectorAll('.style-btn').forEach(btn => {
       btn.addEventListener('click', (e) => {
@@ -76,6 +85,7 @@ class PopupController {
 
   updateUI() {
     const apiKeySection = document.getElementById('apiKeySection');
+    const realtimeSection = document.getElementById('realtimeSection');
     const summarySection = document.getElementById('summarySection');
     const manualSection = document.getElementById('manualSection');
     const apiKeyStatus = document.getElementById('apiKeyStatus');
@@ -84,6 +94,7 @@ class PopupController {
     if (!this.apiKey) {
       // Show API key setup
       apiKeySection.classList.remove('hidden');
+      realtimeSection.classList.add('hidden');
       summarySection.classList.add('hidden');
       manualSection.classList.add('hidden');
       apiKeyStatus.textContent = 'Enter your Gemini API key to get started';
@@ -91,12 +102,16 @@ class PopupController {
     } else {
       // API key is set
       apiKeySection.classList.add('hidden');
+      realtimeSection.classList.remove('hidden');
       summarySection.classList.remove('hidden');
       manualSection.classList.remove('hidden');
 
       // Update API key status
       apiKeyStatus.textContent = 'API key configured ✓';
       apiKeyStatus.className = 'status success';
+
+      // Update real-time section
+      this.updateRealtimeStatus();
 
       // Update summary section
       if (this.currentSummary) {
@@ -314,6 +329,84 @@ class PopupController {
         }
       }, 3000);
     }
+  }
+
+  async toggleTranscription() {
+    const button = document.getElementById('toggleTranscription');
+    const currentText = button.textContent;
+    
+    if (currentText === 'Start Listening') {
+      // Start transcription
+      try {
+        const response = await this.sendMessage({
+          type: 'START_TRANSCRIPTION'
+        });
+        
+        if (response.success) {
+          button.textContent = 'Stop Listening';
+          button.classList.remove('secondary');
+          this.showStatus('Real-time transcription started', 'success');
+        } else {
+          this.showStatus(response.error || 'Failed to start transcription', 'error');
+        }
+      } catch (error) {
+        this.showStatus('Error starting transcription', 'error');
+      }
+    } else {
+      // Stop transcription
+      try {
+        const response = await this.sendMessage({
+          type: 'STOP_TRANSCRIPTION'
+        });
+        
+        button.textContent = 'Start Listening';
+        button.classList.add('secondary');
+        this.showStatus('Transcription stopped', 'info');
+      } catch (error) {
+        this.showStatus('Error stopping transcription', 'error');
+      }
+    }
+  }
+
+  async clearTranscript() {
+    try {
+      const response = await this.sendMessage({
+        type: 'CLEAR_TRANSCRIPT'
+      });
+      
+      if (response.success) {
+        document.getElementById('liveTranscriptPreview').textContent = '';
+        document.getElementById('liveTranscriptPreview').classList.add('hidden');
+        this.showStatus('Transcript cleared', 'success');
+      }
+    } catch (error) {
+      this.showStatus('Error clearing transcript', 'error');
+    }
+  }
+
+  updateRealtimeStatus() {
+    const realtimeStatus = document.getElementById('realtimeStatus');
+    const livePreview = document.getElementById('liveTranscriptPreview');
+    
+    // Check if we're currently in a meeting
+    this.sendMessage({ type: 'GET_MEETING_STATUS' }).then(response => {
+      if (response.inMeeting) {
+        realtimeStatus.textContent = `🎤 In meeting: ${response.meetingTitle || 'Unknown'}`;
+        realtimeStatus.className = 'status success';
+        
+        if (response.transcript && response.transcript.length > 0) {
+          livePreview.textContent = response.transcript;
+          livePreview.classList.remove('hidden');
+        }
+      } else {
+        realtimeStatus.textContent = 'Not currently in a meeting';
+        realtimeStatus.className = 'status info';
+        livePreview.classList.add('hidden');
+      }
+    }).catch(() => {
+      realtimeStatus.textContent = 'Status unknown';
+      realtimeStatus.className = 'status info';
+    });
   }
 
   sendMessage(message) {

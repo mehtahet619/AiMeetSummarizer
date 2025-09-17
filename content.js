@@ -6,6 +6,9 @@ class MeetingDetector {
     this.transcript = '';
     this.meetingTitle = '';
     this.observers = [];
+    this.audioTranscriber = null;
+    this.transcriptDisplay = null;
+    this.isRealTimeEnabled = true;
     
     this.init();
   }
@@ -114,7 +117,13 @@ class MeetingDetector {
     this.transcript = '';
     this.meetingTitle = this.extractMeetingTitle();
     
-    // Start monitoring for transcript
+    // Create real-time transcript display
+    this.createTranscriptDisplay();
+    
+    // Start real-time audio transcription
+    this.startRealTimeTranscription();
+    
+    // Also start monitoring for existing transcript (fallback)
     this.startTranscriptCapture();
   }
 
@@ -122,9 +131,17 @@ class MeetingDetector {
     console.log('Meeting ended');
     this.isInMeeting = false;
     
+    // Stop real-time transcription
+    this.stopRealTimeTranscription();
+    
+    // Hide transcript display
+    this.hideTranscriptDisplay();
+    
     // Process the collected transcript
     if (this.transcript.trim().length > 0) {
       this.processMeetingTranscript();
+    } else {
+      this.showNotification('Meeting ended but no transcript was captured');
     }
     
     this.cleanup();
@@ -315,21 +332,21 @@ class MeetingDetector {
   processMeetingTranscript() {
     console.log('Processing meeting transcript...');
     
-    // Send transcript to background script for processing
+    // Send final transcript update
     chrome.runtime.sendMessage({
-      type: 'MEETING_ENDED',
+      type: 'TRANSCRIPT_UPDATE',
       data: {
         transcript: this.transcript,
         meetingTitle: this.meetingTitle,
-        platform: this.platform,
-        timestamp: new Date().toISOString()
+        isComplete: true
       }
     }, (response) => {
       if (response && response.success) {
         console.log('Meeting processed successfully');
-        this.showNotification('Meeting summary generated!');
+        this.showNotification('Meeting summary generated! 📝');
       } else {
         console.error('Failed to process meeting:', response?.error);
+        this.showNotification('Meeting ended - transcript saved');
       }
     });
   }
@@ -360,12 +377,233 @@ class MeetingDetector {
     }, 5000);
   }
 
+  startRealTimeTranscription() {
+    if (!this.isRealTimeEnabled) return;
+    
+    // Load the audio transcriber
+    this.loadAudioTranscriber().then(() => {
+      if (window.AudioTranscriber) {
+        this.audioTranscriber = new window.AudioTranscriber(
+          (data) => this.handleTranscriptUpdate(data),
+          (error) => this.handleTranscriptionError(error)
+        );
+        
+        // Start listening
+        this.audioTranscriber.startListening().then(success => {
+          if (success) {
+            this.showNotification('🎤 Real-time transcription started');
+            this.updateTranscriptDisplay('🎤 Listening for audio...');
+          } else {
+            this.showNotification('Failed to start audio transcription');
+          }
+        });
+      }
+    });
+  }
+
+  async loadAudioTranscriber() {
+    return new Promise((resolve) => {
+      if (window.AudioTranscriber) {
+        resolve();
+        return;
+      }
+      
+      const script = document.createElement('script');
+      script.src = chrome.runtime.getURL('audio-transcriber.js');
+      script.onload = resolve;
+      document.head.appendChild(script);
+    });
+  }
+
+  handleTranscriptUpdate(data) {
+    const { type, text, fullTranscript } = data;
+    
+    if (type === 'final') {
+      // Add to permanent transcript
+      this.transcript += text;
+      this.updateTranscriptDisplay(fullTranscript, false);
+      
+      // Send update to background script
+      chrome.runtime.sendMessage({
+        type: 'TRANSCRIPT_UPDATE',
+        data: {
+          transcript: this.transcript,
+          meetingTitle: this.meetingTitle,
+          isComplete: false
+        }
+      });
+    } else if (type === 'interim') {
+      // Show interim results
+      this.updateTranscriptDisplay(fullTranscript, true);
+    }
+  }
+
+  handleTranscriptionError(error) {
+    console.error('Transcription error:', error);
+    this.showNotification(`Transcription error: ${error}`);
+    
+    // Fall back to platform transcript capture
+    this.isRealTimeEnabled = false;
+  }
+
+  stopRealTimeTranscription() {
+    if (this.audioTranscriber) {
+      this.audioTranscriber.stopListening();
+      this.audioTranscriber = null;
+    }
+  }
+
+  createTranscriptDisplay() {
+    // Create floating transcript display
+    this.transcriptDisplay = document.createElement('div');
+    this.transcriptDisplay.id = 'meeting-summarizer-transcript';
+    this.transcriptDisplay.style.cssText = `
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      width: 350px;
+      max-height: 400px;
+      background: rgba(0, 0, 0, 0.9);
+      color: white;
+      padding: 15px;
+      border-radius: 8px;
+      font-family: monospace;
+      font-size: 12px;
+      line-height: 1.4;
+      z-index: 10000;
+      overflow-y: auto;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    `;
+    
+    // Add header
+    const header = document.createElement('div');
+    header.style.cssText = `
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+      font-weight: bold;
+      font-size: 14px;
+    `;
+    header.innerHTML = `
+      <span>🎤 Live Transcript</span>
+      <button id="transcript-toggle" style="
+        background: none;
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        color: white;
+        padding: 4px 8px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 10px;
+      ">Hide</button>
+    `;
+    
+    // Add content area
+    const content = document.createElement('div');
+    content.id = 'transcript-content';
+    content.style.cssText = `
+      white-space: pre-wrap;
+      word-wrap: break-word;
+    `;
+    
+    this.transcriptDisplay.appendChild(header);
+    this.transcriptDisplay.appendChild(content);
+    document.body.appendChild(this.transcriptDisplay);
+    
+    // Add toggle functionality
+    document.getElementById('transcript-toggle').addEventListener('click', () => {
+      this.toggleTranscriptDisplay();
+    });
+  }
+
+  updateTranscriptDisplay(text, isInterim = false) {
+    if (!this.transcriptDisplay) return;
+    
+    const content = document.getElementById('transcript-content');
+    if (!content) return;
+    
+    if (isInterim) {
+      // Show interim results in a different style
+      const lines = text.split('\n');
+      const finalLines = lines.slice(0, -1);
+      const interimLine = lines[lines.length - 1];
+      
+      content.innerHTML = finalLines.join('\n') + 
+        (interimLine ? `\n<span style="color: #888; font-style: italic;">${interimLine}</span>` : '');
+    } else {
+      content.textContent = text;
+    }
+    
+    // Auto-scroll to bottom
+    content.scrollTop = content.scrollHeight;
+  }
+
+  toggleTranscriptDisplay() {
+    if (!this.transcriptDisplay) return;
+    
+    const content = document.getElementById('transcript-content');
+    const button = document.getElementById('transcript-toggle');
+    
+    if (content.style.display === 'none') {
+      content.style.display = 'block';
+      button.textContent = 'Hide';
+    } else {
+      content.style.display = 'none';
+      button.textContent = 'Show';
+    }
+  }
+
+  hideTranscriptDisplay() {
+    if (this.transcriptDisplay && this.transcriptDisplay.parentNode) {
+      this.transcriptDisplay.parentNode.removeChild(this.transcriptDisplay);
+      this.transcriptDisplay = null;
+    }
+  }
+
   cleanup() {
+    // Stop real-time transcription
+    this.stopRealTimeTranscription();
+    
+    // Hide transcript display
+    this.hideTranscriptDisplay();
+    
     // Clean up observers
     this.observers.forEach(observer => observer.disconnect());
     this.observers = [];
   }
 }
 
+// Listen for messages from background script
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  switch (message.type) {
+    case 'START_REAL_TIME_TRANSCRIPTION':
+      if (meetingDetector) {
+        meetingDetector.startRealTimeTranscription();
+        sendResponse({ success: true });
+      } else {
+        sendResponse({ error: 'Meeting detector not initialized' });
+      }
+      break;
+      
+    case 'STOP_REAL_TIME_TRANSCRIPTION':
+      if (meetingDetector) {
+        meetingDetector.stopRealTimeTranscription();
+        sendResponse({ success: true });
+      } else {
+        sendResponse({ success: true }); // Always succeed for stop
+      }
+      break;
+      
+    default:
+      sendResponse({ error: 'Unknown message type' });
+  }
+  
+  return true; // Keep message channel open
+});
+
 // Initialize the meeting detector
-new MeetingDetector();
+const meetingDetector = new MeetingDetector();

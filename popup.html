@@ -216,6 +216,24 @@
     <button id="saveApiKey" class="button">Save API Key</button>
   </div>
 
+  <!-- Real-time Status Section -->
+  <div id="realtimeSection" class="section hidden">
+    <h3>🎤 Real-time Transcription</h3>
+    
+    <div id="realtimeStatus" class="status info">
+      Not currently in a meeting
+    </div>
+    
+    <div class="button-group">
+      <button id="toggleTranscription" class="button secondary">Start Listening</button>
+      <button id="clearTranscript" class="button secondary">Clear</button>
+    </div>
+    
+    <div id="liveTranscriptPreview" class="summary-container hidden" style="max-height: 150px; font-size: 12px;">
+      <!-- Live transcript preview -->
+    </div>
+  </div>
+
   <!-- Summary Section -->
   <div id="summarySection" class="section hidden">
     <h3>📝 Meeting Summary</h3>
