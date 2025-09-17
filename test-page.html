@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meeting Summarizer Test Page</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .container {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+        }
+        .sample-transcript {
+            background: white;
+            padding: 15px;
+            border-left: 4px solid #1a73e8;
+            margin: 15px 0;
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+        .button {
+            background: #1a73e8;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            margin: 5px;
+        }
+        .button:hover {
+            background: #1557b0;
+        }
+        .instructions {
+            background: #e8f0fe;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 15px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>🤖 Meeting Summarizer Test Page</h1>
+    
+    <div class="instructions">
+        <h3>How to Test the Extension:</h3>
+        <ol>
+            <li>Make sure the Meeting Summarizer extension is installed and configured with your Gemini API key</li>
+            <li>Copy one of the sample transcripts below</li>
+            <li>Click the extension icon in your toolbar</li>
+            <li>Paste the transcript in the "Manual Summarization" section</li>
+            <li>Choose a summary style and click "Summarize Text"</li>
+        </ol>
+    </div>
+
+    <div class="container">
+        <h2>Sample Meeting Transcript 1: Project Planning</h2>
+        <div class="sample-transcript" id="transcript1">John: Good morning everyone, thanks for joining today's project planning meeting. We need to discuss the Q4 roadmap and assign responsibilities.
+
+Sarah: Hi John, I've prepared the initial timeline. We have three major deliverables: the mobile app update, the API integration, and the user dashboard redesign.
+
+Mike: The mobile app update is my priority. I estimate it will take 6 weeks to complete all the features we discussed. We need to finalize the UI mockups by next Friday.
+
+Sarah: That works with our timeline. For the API integration, I'll need support from the backend team. Tom, can you help with the database schema updates?
+
+Tom: Absolutely. I can have the schema changes ready by the end of next week. We should also plan for load testing once the integration is complete.
+
+John: Great. Let's set up weekly check-ins every Tuesday at 2 PM. Sarah, can you send out calendar invites?
+
+Sarah: Will do. I'll also create a shared project board so we can track progress.
+
+Mike: One more thing - we need to coordinate with the QA team for testing. Should I reach out to Lisa?
+
+John: Yes, please loop in Lisa and schedule a testing kickoff meeting for two weeks from now.
+
+Tom: I'll document all the technical requirements and share them by Thursday.
+
+John: Perfect. Let's reconvene next Tuesday to review progress. Thanks everyone!</div>
+        <button class="button" onclick="copyTranscript('transcript1')">Copy This Transcript</button>
+    </div>
+
+    <div class="container">
+        <h2>Sample Meeting Transcript 2: Marketing Review</h2>
+        <div class="sample-transcript" id="transcript2">Emma: Welcome to our monthly marketing review. Let's start with the campaign performance metrics.
+
+David: The social media campaign exceeded our expectations. We saw a 45% increase in engagement and 30% more website traffic compared to last month.
+
+Lisa: That's fantastic! The email marketing campaign also performed well. Open rates were at 28% and click-through rates at 6.2%.
+
+Emma: Excellent results. What about the paid advertising spend?
+
+David: We're slightly over budget on Google Ads but the ROI is strong. Cost per acquisition is down 15% from last quarter.
+
+Lisa: I recommend we reallocate some budget from traditional advertising to digital channels based on these results.
+
+Emma: Good idea. Lisa, can you prepare a budget reallocation proposal by next Friday?
+
+Lisa: Absolutely. I'll include projections for the next quarter as well.
+
+David: We should also consider expanding our social media presence to LinkedIn. Our B2B audience is growing.
+
+Emma: Let's explore that. David, research LinkedIn advertising options and present findings at our next meeting.
+
+David: Will do. I'll also analyze our competitor's LinkedIn strategies.
+
+Lisa: For the upcoming product launch, we need to coordinate with the PR team. Should I schedule a joint meeting?
+
+Emma: Yes, let's get everyone aligned. Schedule it for next Wednesday.
+
+David: I'll prepare the creative assets for the launch campaign by Monday.
+
+Emma: Great work everyone. Our next review is scheduled for the first Tuesday of next month.</div>
+        <button class="button" onclick="copyTranscript('transcript2')">Copy This Transcript</button>
+    </div>
+
+    <div class="container">
+        <h2>Sample Meeting Transcript 3: Technical Discussion</h2>
+        <div class="sample-transcript" id="transcript3">Alex: Let's discuss the database performance issues we've been experiencing.
+
+Rachel: The main bottleneck is in the user queries. Response times have increased by 200% over the past month.
+
+Kevin: I've been monitoring the server metrics. CPU usage spikes during peak hours, especially around 2-4 PM.
+
+Alex: What's causing the performance degradation?
+
+Rachel: The user table has grown significantly. We're now at 2 million records and our current indexing strategy isn't optimal.
+
+Kevin: We also have some inefficient queries in the reporting module. Some are doing full table scans.
+
+Alex: Let's prioritize the fixes. Rachel, can you optimize the database indexes this week?
+
+Rachel: Yes, I'll focus on the user queries first. I estimate it will take 3-4 days to implement and test the changes.
+
+Kevin: I'll work on optimizing the reporting queries. We can also implement query caching to reduce database load.
+
+Alex: Good. We should also consider database sharding if the growth continues at this rate.
+
+Rachel: I agree. Let me research sharding strategies and present options at next week's architecture meeting.
+
+Kevin: We should set up better monitoring alerts. I'll configure alerts for query response times and CPU usage.
+
+Alex: Excellent. Let's also schedule a post-implementation review to measure the improvements.
+
+Rachel: I'll create performance benchmarks before making the changes so we can compare results.
+
+Kevin: Should we notify the product team about potential brief downtime during the deployment?
+
+Alex: Yes, coordinate with them for a maintenance window. Aim for low-traffic hours.
+
+Rachel: I'll send out a deployment schedule by tomorrow.</div>
+        <button class="button" onclick="copyTranscript('transcript3')">Copy This Transcript</button>
+    </div>
+
+    <div class="container">
+        <h3>Testing Different Summary Styles</h3>
+        <p>Try the same transcript with different summary styles to see how the AI adapts:</p>
+        <ul>
+            <li><strong>Standard:</strong> Balanced overview with key points and action items</li>
+            <li><strong>Short:</strong> Brief 2-3 sentence summary</li>
+            <li><strong>Detailed:</strong> Comprehensive analysis with full context</li>
+            <li><strong>Action Items:</strong> Focus on tasks, responsibilities, and deadlines</li>
+        </ul>
+    </div>
+
+    <script>
+        function copyTranscript(elementId) {
+            const transcript = document.getElementById(elementId).textContent;
+            navigator.clipboard.writeText(transcript).then(() => {
+                alert('Transcript copied to clipboard! Now open the Meeting Summarizer extension and paste it in the manual summarization section.');
+            }).catch(err => {
+                console.error('Failed to copy text: ', err);
+                // Fallback for older browsers
+                const textArea = document.createElement('textarea');
+                textArea.value = transcript;
+                document.body.appendChild(textArea);
+                textArea.select();
+                document.execCommand('copy');
+                document.body.removeChild(textArea);
+                alert('Transcript copied to clipboard! Now open the Meeting Summarizer extension and paste it in the manual summarization section.');
+            });
+        }
+    </script>
+</body>
+</html>
