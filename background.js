@@ -30,6 +30,21 @@ class MeetingSummarizer {
         case 'SUMMARIZE_TEXT':
           await this.summarizeText(message.data, sendResponse);
           break;
+        case 'START_TRANSCRIPTION':
+          await this.startTranscription(sender, sendResponse);
+          break;
+        case 'STOP_TRANSCRIPTION':
+          await this.stopTranscription(sender, sendResponse);
+          break;
+        case 'CLEAR_TRANSCRIPT':
+          await this.clearTranscript(sendResponse);
+          break;
+        case 'GET_MEETING_STATUS':
+          await this.getMeetingStatus(sendResponse);
+          break;
+        case 'TRANSCRIPT_UPDATE':
+          await this.handleTranscriptUpdate(message.data, sendResponse);
+          break;
         default:
           sendResponse({ error: 'Unknown message type' });
       }
@@ -137,6 +152,92 @@ class MeetingSummarizer {
     }
 
     return data.candidates[0].content.parts[0].text;
+  }
+
+  async startTranscription(sender, sendResponse) {
+    try {
+      // Send message to content script to start transcription
+      const response = await chrome.tabs.sendMessage(sender.tab.id, {
+        type: 'START_REAL_TIME_TRANSCRIPTION'
+      });
+      
+      sendResponse({ success: true, message: 'Transcription started' });
+    } catch (error) {
+      sendResponse({ error: 'Failed to start transcription: ' + error.message });
+    }
+  }
+
+  async stopTranscription(sender, sendResponse) {
+    try {
+      // Send message to content script to stop transcription
+      const response = await chrome.tabs.sendMessage(sender.tab.id, {
+        type: 'STOP_REAL_TIME_TRANSCRIPTION'
+      });
+      
+      sendResponse({ success: true, message: 'Transcription stopped' });
+    } catch (error) {
+      sendResponse({ success: true, message: 'Transcription stopped' }); // Always succeed for stop
+    }
+  }
+
+  async clearTranscript(sendResponse) {
+    try {
+      await chrome.storage.local.set({
+        currentTranscript: '',
+        lastMeeting: null
+      });
+      
+      sendResponse({ success: true, message: 'Transcript cleared' });
+    } catch (error) {
+      sendResponse({ error: 'Failed to clear transcript' });
+    }
+  }
+
+  async getMeetingStatus(sendResponse) {
+    try {
+      const result = await chrome.storage.local.get(['currentMeeting', 'currentTranscript']);
+      
+      sendResponse({
+        inMeeting: !!result.currentMeeting,
+        meetingTitle: result.currentMeeting?.title || '',
+        transcript: result.currentTranscript || ''
+      });
+    } catch (error) {
+      sendResponse({ inMeeting: false, meetingTitle: '', transcript: '' });
+    }
+  }
+
+  async handleTranscriptUpdate(data, sendResponse) {
+    try {
+      const { transcript, isComplete } = data;
+      
+      // Store the current transcript
+      await chrome.storage.local.set({
+        currentTranscript: transcript
+      });
+      
+      // If meeting is complete, trigger summarization
+      if (isComplete && transcript.trim().length > 50) {
+        const summary = await this.summarizeText({ text: transcript }, () => {});
+        
+        // Store the completed meeting
+        await chrome.storage.local.set({
+          lastMeeting: {
+            transcript,
+            title: data.meetingTitle || 'Real-time Meeting',
+            timestamp: new Date().toISOString()
+          },
+          currentMeeting: null,
+          currentTranscript: ''
+        });
+        
+        sendResponse({ success: true, summary });
+      } else {
+        sendResponse({ success: true });
+      }
+    } catch (error) {
+      sendResponse({ error: error.message });
+    }
   }
 }
 
