@@ -97,15 +97,32 @@ class MeetingDetector {
   checkIfInMeeting() {
     switch (this.platform) {
       case 'google-meet':
-        return window.location.pathname.includes('/') && 
-               window.location.pathname.length > 1 &&
-               !window.location.pathname.includes('/landing');
+        // More specific Google Meet detection
+        const path = window.location.pathname;
+        const isInMeetingRoom = path.match(/^\/[a-z]{3}-[a-z]{4}-[a-z]{3}$/) || // Standard meeting room format
+                               path.match(/^\/lookup\/[^\/]+$/) || // Lookup format
+                               path.match(/^\/[a-zA-Z0-9\-_]{10,}$/) || // Generic meeting ID
+                               document.querySelector('[data-meeting-id]') !== null ||
+                               document.querySelector('[jscontroller="kAPkF"]') !== null; // Meeting container
+        
+        // Also check for meeting UI elements
+        const hasMeetingUI = document.querySelector('[data-call-ended]') === null && // Not ended
+                            (document.querySelector('[data-self-name]') !== null || // Participant area
+                             document.querySelector('[jsname="BOHaEe"]') !== null || // Video area
+                             document.querySelector('[aria-label*="camera"]') !== null); // Camera controls
+        
+        return isInMeetingRoom && hasMeetingUI;
+        
       case 'zoom':
         return window.location.pathname.includes('/wc/') ||
-               document.querySelector('[data-testid="meeting-window"]') !== null;
+               document.querySelector('[data-testid="meeting-window"]') !== null ||
+               document.querySelector('[aria-label*="meeting controls"]') !== null;
+               
       case 'teams':
         return window.location.pathname.includes('/meetup-join/') ||
-               document.querySelector('[data-tid="meeting-stage"]') !== null;
+               document.querySelector('[data-tid="meeting-stage"]') !== null ||
+               document.querySelector('[data-tid="calling-screen"]') !== null;
+               
       default:
         return false;
     }
@@ -275,7 +292,19 @@ class MeetingDetector {
   }
 
   observeMeetingEnd() {
-    // Monitor for meeting end indicators
+    // Use a more reliable method - check for meeting state changes periodically
+    this.meetingCheckInterval = setInterval(() => {
+      if (this.isInMeeting) {
+        const stillInMeeting = this.checkIfInMeeting();
+        if (!stillInMeeting) {
+          console.log('Meeting state changed - ending meeting');
+          clearInterval(this.meetingCheckInterval);
+          setTimeout(() => this.onMeetingEnd(), 3000); // Give time for final transcript
+        }
+      }
+    }, 5000); // Check every 5 seconds
+    
+    // Also monitor for explicit end indicators (but less aggressively)
     const endSelectors = this.getMeetingEndSelectors();
     
     endSelectors.forEach(selector => {
@@ -284,8 +313,14 @@ class MeetingDetector {
           mutation.addedNodes.forEach((node) => {
             if (node.nodeType === Node.ELEMENT_NODE) {
               const endElement = node.querySelector && node.querySelector(selector);
-              if (endElement || node.matches && node.matches(selector)) {
-                setTimeout(() => this.onMeetingEnd(), 2000); // Delay to capture final transcript
+              if (endElement || (node.matches && node.matches(selector))) {
+                // Double-check that we're actually ending
+                setTimeout(() => {
+                  if (this.isInMeeting && !this.checkIfInMeeting()) {
+                    console.log('Meeting end detected via UI element');
+                    this.onMeetingEnd();
+                  }
+                }, 3000);
               }
             }
           });
@@ -305,23 +340,23 @@ class MeetingDetector {
     switch (this.platform) {
       case 'google-meet':
         return [
-          '[data-call-ended]',
-          'button[aria-label*="Leave call"]',
-          '.VfPpkd-Bz112c-LgbsSe[aria-label*="Leave"]'
+          '[data-call-ended="true"]', // More specific - only when actually ended
+          '.google-material-icons[data-value="call_end"]', // End call button clicked
+          '[aria-label="You left the meeting"]' // Left meeting message
         ];
       
       case 'zoom':
         return [
-          '[data-testid="leave-meeting"]',
-          '.leave-meeting-button',
-          '[aria-label*="Leave Meeting"]'
+          '[data-testid="meeting-ended"]',
+          '.meeting-ended-container',
+          '[aria-label*="Meeting has ended"]'
         ];
       
       case 'teams':
         return [
-          '[data-tid="call-end"]',
-          'button[aria-label*="Leave"]',
-          '[data-tid="hangup-button"]'
+          '[data-tid="call-ended"]',
+          '.call-ended-screen',
+          '[aria-label*="Call ended"]'
         ];
       
       default:
@@ -570,6 +605,12 @@ class MeetingDetector {
     
     // Hide transcript display
     this.hideTranscriptDisplay();
+    
+    // Clear meeting check interval
+    if (this.meetingCheckInterval) {
+      clearInterval(this.meetingCheckInterval);
+      this.meetingCheckInterval = null;
+    }
     
     // Clean up observers
     this.observers.forEach(observer => observer.disconnect());
