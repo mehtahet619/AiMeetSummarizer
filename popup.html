@@ -89,7 +89,9 @@
 
     .button:disabled {
       background: #dadce0;
+      color: #5f6368;
       cursor: not-allowed;
+      opacity: 0.6;
     }
 
     .button.secondary {
@@ -218,19 +220,23 @@
 
   <!-- Real-time Status Section -->
   <div id="realtimeSection" class="section hidden">
-    <h3>🎤 Real-time Transcription</h3>
+    <h3>🎤 Manual Transcription Control</h3>
     
     <div id="realtimeStatus" class="status info">
-      Not currently in a meeting
+      Join a meeting to start transcription
     </div>
     
     <div class="button-group">
-      <button id="toggleTranscription" class="button secondary">Start Listening</button>
+      <button id="toggleTranscription" class="button secondary" disabled>Start Listening</button>
       <button id="clearTranscript" class="button secondary">Clear</button>
     </div>
     
     <div id="liveTranscriptPreview" class="summary-container hidden" style="max-height: 150px; font-size: 12px;">
       <!-- Live transcript preview -->
+    </div>
+    
+    <div class="status info" style="font-size: 12px; margin-top: 10px;">
+      💡 Transcription only starts when you click "Start Listening"
     </div>
   </div>
 

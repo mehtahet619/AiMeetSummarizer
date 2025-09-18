@@ -45,6 +45,9 @@ class MeetingSummarizer {
         case 'TRANSCRIPT_UPDATE':
           await this.handleTranscriptUpdate(message.data, sendResponse);
           break;
+        case 'MEETING_STARTED':
+          await this.handleMeetingStarted(message.data, sendResponse);
+          break;
         default:
           sendResponse({ error: 'Unknown message type' });
       }
@@ -156,8 +159,16 @@ class MeetingSummarizer {
 
   async startTranscription(sender, sendResponse) {
     try {
+      // Find the active tab with a meeting platform
+      const meetingTab = await this.findMeetingTab();
+      
+      if (!meetingTab) {
+        sendResponse({ error: 'No meeting tab found. Please open Google Meet, Zoom, or Teams first.' });
+        return;
+      }
+      
       // Send message to content script to start transcription
-      const response = await chrome.tabs.sendMessage(sender.tab.id, {
+      await chrome.tabs.sendMessage(meetingTab.id, {
         type: 'START_REAL_TIME_TRANSCRIPTION'
       });
       
@@ -169,10 +180,14 @@ class MeetingSummarizer {
 
   async stopTranscription(sender, sendResponse) {
     try {
-      // Send message to content script to stop transcription
-      const response = await chrome.tabs.sendMessage(sender.tab.id, {
-        type: 'STOP_REAL_TIME_TRANSCRIPTION'
-      });
+      // Find the active tab with a meeting platform
+      const meetingTab = await this.findMeetingTab();
+      
+      if (meetingTab) {
+        await chrome.tabs.sendMessage(meetingTab.id, {
+          type: 'STOP_REAL_TIME_TRANSCRIPTION'
+        });
+      }
       
       sendResponse({ success: true, message: 'Transcription stopped' });
     } catch (error) {
@@ -237,6 +252,63 @@ class MeetingSummarizer {
       }
     } catch (error) {
       sendResponse({ error: error.message });
+    }
+  }
+
+  async handleMeetingStarted(data, sendResponse) {
+    try {
+      // Store current meeting state
+      await chrome.storage.local.set({
+        currentMeeting: {
+          title: data.title,
+          platform: data.platform,
+          startTime: data.timestamp
+        },
+        currentTranscript: ''
+      });
+      
+      console.log('Meeting started:', data.title);
+      sendResponse({ success: true });
+    } catch (error) {
+      sendResponse({ error: error.message });
+    }
+  }
+
+  async findMeetingTab() {
+    try {
+      // Get all tabs
+      const tabs = await chrome.tabs.query({});
+      
+      // Meeting platform URLs to look for
+      const meetingPlatforms = [
+        'meet.google.com',
+        'zoom.us',
+        'teams.microsoft.com'
+      ];
+      
+      // Find tabs with meeting platforms
+      const meetingTabs = tabs.filter(tab => {
+        return meetingPlatforms.some(platform => 
+          tab.url && tab.url.includes(platform)
+        );
+      });
+      
+      if (meetingTabs.length === 0) {
+        return null;
+      }
+      
+      // Prefer active tab if it's a meeting platform
+      const activeTab = meetingTabs.find(tab => tab.active);
+      if (activeTab) {
+        return activeTab;
+      }
+      
+      // Otherwise return the first meeting tab found
+      return meetingTabs[0];
+      
+    } catch (error) {
+      console.error('Error finding meeting tab:', error);
+      return null;
     }
   }
 }

@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meeting Summarizer Debug Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        .debug-section {
+            background: #f5f5f5;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 5px;
+            border-left: 4px solid #007cba;
+        }
+        .button {
+            background: #007cba;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        .button:hover {
+            background: #005a87;
+        }
+        .log {
+            background: #000;
+            color: #0f0;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .status.success { background: #d4edda; color: #155724; }
+        .status.error { background: #f8d7da; color: #721c24; }
+        .status.info { background: #d1ecf1; color: #0c5460; }
+    </style>
+</head>
+<body>
+    <h1>🔧 Meeting Summarizer Debug Test</h1>
+    
+    <div class="debug-section">
+        <h3>Extension Status</h3>
+        <div id="extensionStatus" class="status info">Checking extension...</div>
+        <button class="button" onclick="checkExtension()">Check Extension</button>
+        <button class="button" onclick="testMicrophone()">Test Microphone</button>
+    </div>
+
+    <div class="debug-section">
+        <h3>Meeting Simulation</h3>
+        <p>This simulates meeting detection without actually joining a meeting:</p>
+        <button class="button" onclick="simulateMeetingStart()">Simulate Meeting Start</button>
+        <button class="button" onclick="simulateMeetingEnd()">Simulate Meeting End</button>
+        <button class="button" onclick="testTranscription()">Test Speech Recognition</button>
+        <button class="button" onclick="testExtensionTranscription()">Test Extension Transcription</button>
+    </div>
+
+    <div class="debug-section">
+        <h3>Real Meeting Test</h3>
+        <p>Use these links to test with actual meeting platforms:</p>
+        <a href="https://meet.google.com/new" target="_blank" class="button">Create Google Meet</a>
+        <a href="https://zoom.us/test" target="_blank" class="button">Zoom Test Meeting</a>
+    </div>
+
+    <div class="debug-section">
+        <h3>Debug Log</h3>
+        <button class="button" onclick="clearLog()">Clear Log</button>
+        <div id="debugLog" class="log">Debug log will appear here...\n</div>
+    </div>
+
+    <script>
+        let recognition = null;
+        
+        function log(message) {
+            const logElement = document.getElementById('debugLog');
+            const timestamp = new Date().toLocaleTimeString();
+            logElement.textContent += `[${timestamp}] ${message}\n`;
+            logElement.scrollTop = logElement.scrollHeight;
+        }
+
+        function clearLog() {
+            document.getElementById('debugLog').textContent = 'Debug log cleared...\n';
+        }
+
+        function updateStatus(elementId, message, type) {
+            const element = document.getElementById(elementId);
+            element.textContent = message;
+            element.className = `status ${type}`;
+        }
+
+        async function checkExtension() {
+            log('Checking extension status...');
+            
+            if (typeof chrome !== 'undefined' && chrome.runtime) {
+                try {
+                    const response = await new Promise((resolve, reject) => {
+                        chrome.runtime.sendMessage({type: 'GET_MEETING_STATUS'}, (response) => {
+                            if (chrome.runtime.lastError) {
+                                reject(chrome.runtime.lastError);
+                            } else {
+                                resolve(response);
+                            }
+                        });
+                    });
+                    
+                    log('Extension is working: ' + JSON.stringify(response));
+                    updateStatus('extensionStatus', 'Extension is working ✓', 'success');
+                } catch (error) {
+                    log('Extension error: ' + error.message);
+                    updateStatus('extensionStatus', 'Extension error: ' + error.message, 'error');
+                }
+            } else {
+                log('Extension not detected');
+                updateStatus('extensionStatus', 'Extension not detected', 'error');
+            }
+        }
+
+        async function testMicrophone() {
+            log('Testing microphone access...');
+            
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                log('Microphone access granted');
+                updateStatus('extensionStatus', 'Microphone access granted ✓', 'success');
+                
+                // Stop the test stream
+                stream.getTracks().forEach(track => track.stop());
+            } catch (error) {
+                log('Microphone error: ' + error.message);
+                updateStatus('extensionStatus', 'Microphone error: ' + error.message, 'error');
+            }
+        }
+
+        function simulateMeetingStart() {
+            log('Simulating meeting start...');
+            
+            // Create fake meeting elements
+            const meetingContainer = document.createElement('div');
+            meetingContainer.setAttribute('data-meeting-id', 'test-meeting-123');
+            meetingContainer.setAttribute('jscontroller', 'kAPkF');
+            meetingContainer.style.display = 'none';
+            document.body.appendChild(meetingContainer);
+            
+            const participantArea = document.createElement('div');
+            participantArea.setAttribute('data-self-name', 'Test User');
+            participantArea.style.display = 'none';
+            document.body.appendChild(participantArea);
+            
+            log('Created fake meeting elements');
+            
+            // Trigger URL change simulation
+            if (typeof meetingDetector !== 'undefined') {
+                meetingDetector.handleUrlChange();
+                log('Triggered meeting detector');
+            } else {
+                log('Meeting detector not found - extension may not be loaded');
+            }
+        }
+
+        function simulateMeetingEnd() {
+            log('Simulating meeting end...');
+            
+            // Remove fake meeting elements
+            const meetingElements = document.querySelectorAll('[data-meeting-id], [data-self-name]');
+            meetingElements.forEach(el => el.remove());
+            
+            log('Removed fake meeting elements');
+            
+            if (typeof meetingDetector !== 'undefined') {
+                meetingDetector.handleUrlChange();
+                log('Triggered meeting end detection');
+            }
+        }
+
+        async function testTranscription() {
+            log('Testing speech recognition...');
+            
+            if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+                log('Speech recognition not supported in this browser');
+                updateStatus('extensionStatus', 'Speech recognition not supported', 'error');
+                return;
+            }
+
+            try {
+                // First test microphone access
+                log('Requesting microphone permission...');
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                log('Microphone access granted');
+                stream.getTracks().forEach(track => track.stop());
+
+                const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+                recognition = new SpeechRecognition();
+                
+                recognition.continuous = true;
+                recognition.interimResults = true;
+                recognition.lang = 'en-US';
+                recognition.maxAlternatives = 1;
+
+                recognition.onstart = () => {
+                    log('🎤 Speech recognition started - SPEAK NOW!');
+                    updateStatus('extensionStatus', 'Listening... speak now!', 'success');
+                };
+
+                recognition.onresult = (event) => {
+                    let finalTranscript = '';
+                    let interimTranscript = '';
+                    
+                    for (let i = event.resultIndex; i < event.results.length; i++) {
+                        const transcript = event.results[i][0].transcript;
+                        if (event.results[i].isFinal) {
+                            finalTranscript += transcript;
+                        } else {
+                            interimTranscript += transcript;
+                        }
+                    }
+                    
+                    if (finalTranscript) {
+                        log('✅ FINAL: ' + finalTranscript);
+                    }
+                    if (interimTranscript) {
+                        log('⏳ INTERIM: ' + interimTranscript);
+                    }
+                };
+
+                recognition.onerror = (event) => {
+                    log('❌ Speech recognition error: ' + event.error);
+                    updateStatus('extensionStatus', 'Speech error: ' + event.error, 'error');
+                };
+
+                recognition.onend = () => {
+                    log('Speech recognition ended');
+                    updateStatus('extensionStatus', 'Speech recognition ended', 'info');
+                };
+
+                log('Starting speech recognition...');
+                recognition.start();
+                
+                // Stop after 15 seconds
+                setTimeout(() => {
+                    if (recognition) {
+                        log('Stopping speech recognition after 15 seconds');
+                        recognition.stop();
+                        recognition = null;
+                    }
+                }, 15000);
+                
+            } catch (error) {
+                log('❌ Failed to start speech recognition: ' + error.message);
+                updateStatus('extensionStatus', 'Failed: ' + error.message, 'error');
+            }
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            log('Debug page loaded');
+            checkExtension();
+        });
+
+        async function testExtensionTranscription() {
+            log('Testing extension transcription...');
+            
+            if (typeof chrome !== 'undefined' && chrome.runtime) {
+                try {
+                    // First simulate meeting start
+                    simulateMeetingStart();
+                    
+                    // Wait a bit
+                    await new Promise(resolve => setTimeout(resolve, 2000));
+                    
+                    // Try to start transcription
+                    const response = await new Promise((resolve, reject) => {
+                        chrome.runtime.sendMessage({type: 'START_TRANSCRIPTION'}, (response) => {
+                            if (chrome.runtime.lastError) {
+                                reject(chrome.runtime.lastError);
+                            } else {
+                                resolve(response);
+                            }
+                        });
+                    });
+                    
+                    log('Extension transcription response: ' + JSON.stringify(response));
+                    
+                    if (response.success) {
+                        updateStatus('extensionStatus', 'Extension transcription started!', 'success');
+                    } else {
+                        updateStatus('extensionStatus', 'Extension error: ' + response.error, 'error');
+                    }
+                } catch (error) {
+                    log('Extension transcription error: ' + error.message);
+                    updateStatus('extensionStatus', 'Extension error: ' + error.message, 'error');
+                }
+            } else {
+                log('Extension not available');
+                updateStatus('extensionStatus', 'Extension not available', 'error');
+            }
+        }
+
+        // Listen for console messages from extension
+        window.addEventListener('message', (event) => {
+            if (event.data && event.data.type === 'MEETING_SUMMARIZER_LOG') {
+                log('Extension: ' + event.data.message);
+            }
+        });
+    </script>
+</body>
+</html>

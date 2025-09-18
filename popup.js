@@ -12,6 +12,13 @@ class PopupController {
     await this.loadStoredData();
     this.setupEventListeners();
     this.updateUI();
+    
+    // Refresh status every 3 seconds to detect meeting changes
+    setInterval(() => {
+      if (this.apiKey) {
+        this.updateRealtimeStatus();
+      }
+    }, 3000);
   }
 
   async loadStoredData() {
@@ -387,25 +394,35 @@ class PopupController {
   updateRealtimeStatus() {
     const realtimeStatus = document.getElementById('realtimeStatus');
     const livePreview = document.getElementById('liveTranscriptPreview');
+    const toggleButton = document.getElementById('toggleTranscription');
     
     // Check if we're currently in a meeting
     this.sendMessage({ type: 'GET_MEETING_STATUS' }).then(response => {
       if (response.inMeeting) {
-        realtimeStatus.textContent = `🎤 In meeting: ${response.meetingTitle || 'Unknown'}`;
+        realtimeStatus.textContent = `📋 Meeting detected: ${response.meetingTitle || 'Unknown'}`;
         realtimeStatus.className = 'status success';
+        
+        // Enable the start button
+        toggleButton.disabled = false;
         
         if (response.transcript && response.transcript.length > 0) {
           livePreview.textContent = response.transcript;
           livePreview.classList.remove('hidden');
         }
       } else {
-        realtimeStatus.textContent = 'Not currently in a meeting';
+        realtimeStatus.textContent = 'Join a meeting to start transcription';
         realtimeStatus.className = 'status info';
         livePreview.classList.add('hidden');
+        
+        // Disable the start button if not in meeting
+        toggleButton.disabled = true;
+        toggleButton.textContent = 'Start Listening';
+        toggleButton.classList.add('secondary');
       }
     }).catch(() => {
-      realtimeStatus.textContent = 'Status unknown';
+      realtimeStatus.textContent = 'Status unknown - try refreshing the meeting page';
       realtimeStatus.className = 'status info';
+      toggleButton.disabled = true;
     });
   }
 
